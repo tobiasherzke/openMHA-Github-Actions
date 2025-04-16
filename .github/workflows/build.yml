@@ -37,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: hoertech/docker-buildenv:mha_x86_64-linux-gcc-13
+      options: --user root  # Run the container as the root user
 
     steps:
       - name: Checkout code
