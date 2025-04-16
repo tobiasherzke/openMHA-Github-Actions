@@ -35,15 +35,12 @@ jobs:
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-latest
+    container:
+      image: hoertech/docker-buildenv:mha_x86_64-linux-gcc-13
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y g++ make libsndfile1-dev libjack-jackd2-dev jackd2 portaudio19-dev liblo-dev liblsl libeigen3-dev
 
       - name: Configure and Build
         run: |
