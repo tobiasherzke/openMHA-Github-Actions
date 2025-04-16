@@ -1,0 +1,50 @@
+## I. Compiling from source on Linux
+
+### Linux prerequisites
+#64-bit version of Ubuntu 20.04 or later,
+#or a Beaglebone Black running Debian Buster.
+#
+#... with the following software packages installed:
+#- g++ (minimum version: g++ 7)
+#- make
+#- libsndfile1-dev
+#- libjack-jackd2-dev
+#- jackd2
+#- portaudio19-dev
+#- liblo-dev
+#- liblsl
+#- libeigen3-dev
+#- libtorch-dev
+
+### Compilation on Linux
+#
+#Compile in a local clone with
+#./configure && make
+
+name: Build openMHA
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+
+jobs:
+  build-linux:
+    name: Build on Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make libsndfile1-dev libjack-jackd2-dev jackd2 portaudio19-dev liblo-dev liblsl libeigen3-dev libtorch-dev
+
+      - name: Configure and Build
+        run: |
+          ./configure
+          make
