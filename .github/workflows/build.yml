@@ -18,6 +18,8 @@ name: openMHA Github Actions Build
 on:
   push:
   pull_request:
+  release:
+    types: [created]
 
 env:
   MINGW_LIBLSL_REF: v1.17.7
@@ -291,6 +293,18 @@ jobs:
           $D git checkout .
 
       # ---------------------------
+      # Create the installers directory
+      # ---------------------------
+      - name: Create installers directory
+        run: |
+          set -eux
+          $D mkdir -p openmha-packages
+          $D touch openmha-packages/additional_openmha_dependencies.txt
+          $D touch openmha-packages/additional_libopenmha_dependencies.txt
+          $D touch openmha-packages/additional_libopenmha-dev_dependencies.txt
+          $D touch openmha-packages/additional_openmha-examples_dependencies.txt
+
+      # ---------------------------
       # Install Liblsl dependency
       # ---------------------------
       - name: Retrieve liblsl from dependencies repository on Ubuntu
@@ -306,6 +320,8 @@ jobs:
           set -eux
           lts=$(echo ${{ matrix.name }} | cut -d- -f-2)
           $D sudo apt-get install -y ./deps/liblsl/$lts/*_${{ matrix.arch }}.deb
+          $D cp deps/liblsl/$lts/*_${{ matrix.arch }}.deb openmha-packages/
+
       # On Windows, liblsl is not available as an msys2 package. Other sources
       # for precompiled binaries will become imcompatible when msys2 updates
       # the compilers. Best to compile here with caching to ensure the same
@@ -402,6 +418,7 @@ jobs:
           if [ "${{ matrix.arch }}" != "armhf" ]; then
             sudo apt-get install -y libtorch-dev
           fi
+          dpkg -l libtorch* | grep ^ii | grep -v dev | awk '{print $2}' >> openmha-packages/additional_dependencies.txt
 
       # ---------------------------
       # Install Octave on Windows. The version from MSYS2 does not support Java.
@@ -471,6 +488,7 @@ jobs:
           set -eux
           JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
           $D make -j"$JOBS" deb_openmha deb_libopenmha deb_libopenmha-dev deb_openmha-examples
+          $D cp -v *.deb openmha-packages/
 
       - name: Upload Debian packages
         if: startsWith(matrix.name, 'ubuntu-')
@@ -480,6 +498,13 @@ jobs:
           path: |
             *.deb
 
+      - name: Combine debian packages for release
+        if: github.event_name == 'release' && startsWith(matrix.name, 'ubuntu-')
+        run: |
+          set -eux
+          mkdir -p release
+          zip -r release/openmha-$(cat version)-${{ matrix.name }}.zip openmha-packages
+
       # ---------------------------
       # Build zip package for Windows installation
       # ---------------------------
@@ -488,15 +513,26 @@ jobs:
         run: |
           set -eux
           make install_deps_windows MSYSTEM="${{ matrix.msystem }}" DESTDIR="$GITHUB_WORKSPACE/install"
+          cp -rv install/openmha openmha-packages/
           cd install
-          zip -r ../openmha-${{ matrix.name }}.zip ./*
+          zip -r ../openmha-$(cat version)-${{ matrix.name }}.zip ./*
       - name: Upload Windows zip package
         if: startsWith(matrix.platform, 'windows')
         uses: actions/upload-artifact@v7
         with:
-          name: openmha-zip-${{ matrix.name }}
+          name: openmha-$(cat version)-${{ matrix.name }}
           path: |
-            openmha-${{ matrix.name }}.zip
+            openmha-$(cat version)-${{ matrix.name }}.zip
+
+      # ---------------------------
+      # Upload zip-file in openmha-packages directory as release artifact
+      # ---------------------------
+      - name: Publish files to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            openmha-$(cat version)-${{ matrix.name }}.zip
 
       - name: Stop step container
         if: always() && matrix.step_container != ''
