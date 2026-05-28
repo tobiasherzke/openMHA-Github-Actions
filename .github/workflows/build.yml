@@ -416,9 +416,9 @@ jobs:
           set -eux
           # Install libtorch-dev from standard ubuntu repository when available.
           if [ "${{ matrix.arch }}" != "armhf" ]; then
-            sudo apt-get install -y libtorch-dev
+            $D sudo apt-get install -y libtorch-dev
+            $D dpkg -l libtorch* | grep ^ii | grep -v dev | awk '{print $2}' >> openmha-packages/additional_dependencies.txt
           fi
-          dpkg -l libtorch* | grep ^ii | grep -v dev | awk '{print $2}' >> openmha-packages/additional_dependencies.txt
 
       # ---------------------------
       # Install Octave on Windows. The version from MSYS2 does not support Java.
