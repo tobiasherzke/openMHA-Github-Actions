@@ -520,7 +520,7 @@ jobs:
         if: startsWith(matrix.platform, 'windows')
         uses: actions/upload-artifact@v7
         with:
-          name: openmha-$(cat version)-${{ matrix.name }}
+          name: openmha-zip-${{ matrix.name }}
           path: |
             openmha-$(cat version)-${{ matrix.name }}.zip
 
