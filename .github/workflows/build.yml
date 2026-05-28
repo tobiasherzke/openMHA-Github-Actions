@@ -293,9 +293,17 @@ jobs:
           $D git checkout .
 
       # ---------------------------
-      # Create the installers directory
+      # Create the installers directories
       # ---------------------------
-      - name: Create installers directory
+      # On Ubuntu, we collect our deb files and possibly some dependencies in
+      # the openmha-packages directory. Also, some ubuntu version specific de-
+      # pendencies are collected in separate text files within this directory.
+      # For releases, we will create a zip file that includes all .deb files
+      # that end up in the "openmha-packages" directory during dependencies
+      # installation and build steps (with path "openmha-packages" stored in
+      # the .zip file), but the zip file should not include the text files.
+      - name: Create installers directory for Ubuntu
+        if: startsWith(matrix.name, 'ubuntu-')
         run: |
           set -eux
           $D mkdir -p openmha-packages
@@ -303,6 +311,14 @@ jobs:
           $D touch openmha-packages/additional_libopenmha_dependencies.txt
           $D touch openmha-packages/additional_libopenmha-dev_dependencies.txt
           $D touch openmha-packages/additional_openmha-examples_dependencies.txt
+      # On Windows, we provide a zip file as an installer. Inside the zip file,
+      # all contained files are stored with a path that begins with directory
+      # "openmha".
+      - name: Create installation directory for Windows
+        if: startsWith(matrix.platform, 'windows')
+        run: mkdir -p openmha
+      # We do not need an installer for Mac as the installation on Mac is done
+      # via Homebrew. We do not provide pre-compiled binaries.
 
       # ---------------------------
       # Install Liblsl dependency
@@ -377,7 +393,6 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           cp -rnv liblsl/install/* "${{ matrix.msys2_root }}"
-
 
       # ---------------------------
       # Install Libtorch dependency
@@ -489,21 +504,7 @@ jobs:
           JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
           $D make -j"$JOBS" deb_openmha deb_libopenmha deb_libopenmha-dev deb_openmha-examples
           $D cp -v *.deb openmha-packages/
-
-      - name: Upload Debian packages
-        if: startsWith(matrix.name, 'ubuntu-')
-        uses: actions/upload-artifact@v7
-        with:
-          name: openmha-debs-${{ matrix.name }}
-          path: |
-            *.deb
-
-      - name: Combine debian packages for release
-        if: github.event_name == 'release' && startsWith(matrix.name, 'ubuntu-')
-        run: |
-          set -eux
-          mkdir -p release
-          zip -r release/openmha-$(cat version)-${{ matrix.name }}.zip openmha-packages
+          zip openmha-$(cat version)-${{ matrix.name }}.zip openmha-packages/*.deb
 
       # ---------------------------
       # Build zip package for Windows installation
@@ -512,27 +513,25 @@ jobs:
         if: startsWith(matrix.platform, 'windows')
         run: |
           set -eux
-          make install_deps_windows MSYSTEM="${{ matrix.msystem }}" DESTDIR="$GITHUB_WORKSPACE/install"
-          cp -rv install/openmha openmha-packages/
-          cd install
-          zip -r ../openmha-$(cat version)-${{ matrix.name }}.zip ./*
-      - name: Upload Windows zip package
-        if: startsWith(matrix.platform, 'windows')
+          make install_deps_windows MSYSTEM="${{ matrix.msystem }}" DESTDIR="$GITHUB_WORKSPACE/"
+          zip -r openmha-$(cat version)-${{ matrix.name }}.zip openmha
+
+      # ---------------------------
+      # Upload installers as artifacts and release assets
+      # ---------------------------
+      - name: Upload as artifacts
         uses: actions/upload-artifact@v7
         with:
           name: openmha-zip-${{ matrix.name }}
           path: |
-            openmha-$(cat version)-${{ matrix.name }}.zip
-
-      # ---------------------------
-      # Upload zip-file in openmha-packages directory as release artifact
-      # ---------------------------
+            openmha-*-${{ matrix.name }}.zip
+            version
       - name: Publish files to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            openmha-$(cat version)-${{ matrix.name }}.zip
+            openmha-*-${{ matrix.name }}.zip
 
       - name: Stop step container
         if: always() && matrix.step_container != ''
@@ -656,53 +655,39 @@ jobs:
           $D apt-get update
           $D apt-get install -y sudo
 
-      # ---------------------------
-      # Linux: smoke test
-      # ---------------------------
-      - name: Download and install openMHA Debian packages for smoke test (Linux)
-        if: startsWith(matrix.name, 'ubuntu')
-        uses: actions/download-artifact@v7
-        with:
-          name: openmha-debs-${{ matrix.name }}
-
-      - name: On Ubuntu 26.04 armhf, libasound2 is provided by libasound2t64
-        if: startsWith(matrix.name, 'ubuntu-26.04-armhf')
-        run: |
-          set -eux
-          $D sudo apt-get update
-          $D sudo apt-get install -y libasound2t64
-
-      - name: Install openMHA Debian packages for smoke test (Linux)
-        if: startsWith(matrix.name, 'ubuntu')
-        run: |
-          set -eux
-          $D sudo apt-get update
-          $D sudo apt-get install -y ./*.deb
-
-      - name: Run smoke test (Linux)
-        if: startsWith(matrix.name, 'ubuntu')
-        run: |
-          set -eux
-          $D which mha
-          $D mha "?" mhalib=wave2spec iolib=MHAIOFile cmd=quit
 
       # ---------------------------
-      # Windows: Install openMHA from zip package for smoke test  
+      # Download build artifacts for smoke test
       # ---------------------------
-      - name: Download zip package for smoke test (Windows)
-        if: startsWith(matrix.name, 'windows')
+      - name: Download build artifact for smoke test
         uses: actions/download-artifact@v7
         with:
           name: openmha-zip-${{ matrix.name }}
 
-      - name: Install openMHA from zip package for smoke test (Windows)
-        if: startsWith(matrix.name, 'windows')
-        run: |
-          & "C:\Program Files\7-Zip\7z" x openmha-${{ matrix.name }}.zip -y -bb2
+      # ---------------------------
+      # Smoke test
+      # ---------------------------
+#      - name: On Ubuntu 26.04 armhf, libasound2 is provided by libasound2t64
+#        if: startsWith(matrix.name, 'ubuntu-26.04-armhf')
+#        run: |
+#          set -eux
+#          $D sudo apt-get update
+#          $D sudo apt-get install -y libasound2t64
 
-      - name: Run smoke test (Windows)
+      - name: Smoke test (Ubuntu)
+        if: startsWith(matrix.name, 'ubuntu')
+        run: |
+          set -eux
+          $D sudo apt-get update
+          $D unzip openmha-*.zip
+          $D sudo apt-get install -y ./openmha-packages/*.deb
+          $D which mha
+          $D mha "?" mhalib=wave2spec iolib=MHAIOFile cmd=quit
+
+      - name: Smoke test (Windows)
         if: startsWith(matrix.name, 'windows')
         run: |
+          & "C:\Program Files\7-Zip\7z" x openmha-*.zip -y -bb2
           & .\openmha\bin\mha.exe ? mhalib=wave2spec iolib=MHAIOFile cmd=quit
 
       # ---------------------------
