@@ -679,6 +679,7 @@ jobs:
         run: |
           set -eux
           $D sudo apt-get update
+          $D sudo apt-get install -y unzip
           $D unzip openmha-*.zip
           $D sudo apt-get install -y ./openmha-packages/*.deb
           $D which mha
