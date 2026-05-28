@@ -193,7 +193,7 @@ deb_%:
 	rm -rf "debian_$$packagename" "$$packagename"_*.deb && \
 	"$(MAKE)" DESTDIR="debian_$$packagename/" "install_$$packagename" && \
 	mkdir -p "debian_$$packagename/DEBIAN" && \
-	cp "$$packagename.control" "debian_$$packagename/DEBIAN/control" && 
+	cp "$$packagename.control" "debian_$$packagename/DEBIAN/control" && \
 	for d in $$(cat openmha-packages/additional_$${packagename}_dependencies.txt); \
 	do echo -n , $$d >> "debian_$$packagename/DEBIAN/control"; done && \
 	echo >> "debian_$$packagename/DEBIAN/control" && \
