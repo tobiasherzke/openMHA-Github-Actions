@@ -17,6 +17,8 @@ name: openMHA Github Actions Build
 
 on:
   push:
+    branches:
+      - '**'
   pull_request:
   release:
     types: [created]
@@ -486,6 +488,17 @@ jobs:
           $D make -j"$JOBS"
 
       # ---------------------------
+      # Upload documentation build artifacts
+      # ---------------------------
+      - name: Upload documentation
+        if: matrix.name == 'ubuntu-22.04' || matrix.name == 'ubuntu-26.04-when-we-have-a-real-runner-for-it'
+        uses: actions/upload-artifact@v7
+        with:
+          name: openmha-documentation
+          path: |
+            *.pdf
+
+      # ---------------------------
       # Build: run tests
       # ---------------------------
       - name: Run tests
@@ -538,6 +551,58 @@ jobs:
         run: |
           docker rm -f build_env || true
 
+  add-documentation:
+    # Documentation pdf files are compiled via doxygen and pdflatex only on
+    # one of the matrix legs in job "build", because it would be a waste of
+    # resources to generate the same files on all matrix legs. In this job,
+    # we add the generated documentation pdf files to the build artifacts
+    # and release assets from all matrix legs.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # We need to download the documentation pdf files and from each build
+      # matrix leg the openmha-*-${{ matrix.name }}.zip file. It is easiest to
+      # just download all artifacts in a single step.
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+      # In a loop, add documentation files to the linux build artifacts
+      - name: Add documentation to linux build artifacts
+        run: |
+          set -eux
+          for zip in openmha-*-ubuntu*.zip; do
+            unzip "$zip"
+            sudo dpkg-deb -R openmha-packages/openmha_*.deb pkg
+            cp -v *.pdf pkg/usr/share/doc/openmha/
+            sudo chown root.root pkg/usr/share/doc/openmha/*.pdf
+            sudo dpkg-deb -Zxz --build pkg openmha-packages/openmha_*.deb
+            zip -u "$zip" openmha-packages/openmha_*.deb
+            sudo rm -rf pkg openmha-packages
+          done
+      - name: Add documentation to windows build artifacts
+        run: |
+          set -eux
+          mkdir -p openmha
+          mv -v *.pdf openmha/
+          for zip in openmha-*-windows*.zip; do
+            zip -u "$zip" openmha/*.pdf
+          done
+      - name: Upload updated Linux and Windows artifacts with documentation
+        uses: actions/upload-artifact@v7
+        with:
+          name: openmha-all-zips-with-documentation
+          path: |
+            openmha-*-ubuntu*.zip
+            openmha-*-windows*.zip
+            version
+      - name: For releases, update release assets with documentation
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            openmha-*-ubuntu*.zip
+            openmha-*-windows*.zip
 
   smoke-test:
     needs: build
