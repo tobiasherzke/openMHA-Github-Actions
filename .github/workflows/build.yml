@@ -33,7 +33,7 @@ jobs:
       matrix:
         include:
           # 1) Ubuntu 24.04
-          - name: ubuntu-24.04
+          - name: ubuntu-24.04-x64
             runs_on: ubuntu-24.04
             # Only one of the following containers can be non-empty
             job_container: "" # Job-level docker container
@@ -44,7 +44,7 @@ jobs:
             
 
           # 2) Ubuntu 26.04
-          - name: ubuntu-26.04
+          - name: ubuntu-26.04-x64
             runs_on: ubuntu-latest
             # Only one of the following containers can be non-empty
             job_container: ubuntu:26.04 # Job-level docker container
@@ -64,7 +64,7 @@ jobs:
             prefix: /usr
 
           # 4) Ubuntu 26.04 ARMHF
-          - name: ubuntu-26.04-armhf
+          - name: ubuntu-26.04-arm32
             runs_on: ubuntu-24.04-arm
             # Only one of the following containers can be non-empty
             job_container: ""              # Job-level docker container
@@ -76,7 +76,7 @@ jobs:
             prefix: /usr
 
           # 5) Windows
-          - name: windows
+          - name: windows-x64
             runs_on: windows-latest
             # Only one of the following containers can be non-empty
             job_container: ""  # Job-level docker container
@@ -109,7 +109,7 @@ jobs:
             prefix: /opt/homebrew/Cellar/openmha/4.99.0
 
           # 8) macOS Intel (latest available Intel image)
-          - name: macos-intel
+          - name: macos-x64
             runs_on: macos-26-intel
             # Only one of the following containers can be non-empty
             job_container: ""  # Job-level docker container
@@ -118,7 +118,7 @@ jobs:
             prefix: /usr/local/Cellar/openmha/4.99.0
 
           # 9) Ubuntu 22.04
-          - name: ubuntu-22.04
+          - name: ubuntu-22.04-x64
             runs_on: ubuntu-22.04
             # Only one of the following containers can be non-empty
             job_container: ""  # Job-level docker container
@@ -196,7 +196,7 @@ jobs:
                        libboost-system-dev netcat-openbsd wget \
                        dpkg-dev lsb-release php-xml gnupg1 cmake
       - name: Install documentation build dependencies (Linux)
-        if: matrix.name == 'ubuntu-22.04' || matrix.name == 'ubuntu-26.04-when-we-have-a-real-runner-for-it'
+        if: matrix.name == 'ubuntu-22.04-x64' || matrix.name == 'ubuntu-26.04-when-we-have-a-real-runner-for-it-x64'
         run: |
           set -eux
           $D sudo apt-get update
@@ -390,7 +390,7 @@ jobs:
       # Install Libtorch dependency
       # ---------------------------
       - name: Install libtorch on ubuntu 22.04 amd64
-        if: matrix.name == 'ubuntu-22.04'
+        if: matrix.name == 'ubuntu-22.04-x64'
         run: |
           set -eux
           # Download libtorch libraries directly from pytorch download page.
@@ -552,7 +552,7 @@ jobs:
           set -eux
 
           # Extract documentation pdf files from the artifact they are in.
-          src_zip=$(ls openmha-*-ubuntu-22.04.zip)
+          src_zip=$(ls openmha-*-ubuntu-22.04-x64.zip)
           unzip "$src_zip"
           sudo dpkg-deb -R openmha-packages/openmha_*.deb pkg
           sudo mv -v pkg/usr/share/doc/openmha/*.pdf ./
@@ -561,13 +561,13 @@ jobs:
 
           # Add documentation pdf files to all linux openmha packages.
           mv "$src_zip" stash/ # No need to update the pdfs in their source.
-          for zip in openmha-*-ubuntu*.zip
+          for zipfile in openmha-*-ubuntu*.zip
           do
-            unzip "$zip"
+            unzip "$zipfile"
             sudo dpkg-deb -R openmha-packages/openmha_*.deb pkg
             sudo cp -pv *.pdf pkg/usr/share/doc/openmha/
             sudo dpkg-deb -Zxz --build pkg openmha-packages/openmha_*.deb
-            zip -u "$zip" openmha-packages/openmha_*.deb
+            zip -u "$zipfile" openmha-packages/openmha_*.deb
             sudo rm -rf pkg openmha-packages
           done
           mv "stash/$src_zip" .
@@ -575,9 +575,9 @@ jobs:
           # Add documentation pdf files to all windows openmha packages.
           mkdir -p openmha/doc
           sudo cp -pv *.pdf openmha/doc
-          for zip in openmha-*-windows*.zip
+          for zipfile in openmha-*-windows*.zip
           do
-            zip -u "$zip" openmha/doc/*.pdf
+            zip -u "$zipfile" openmha/doc/*.pdf
           done
           # Create a new zip file that includes only the documentation
           zip openmha-$(cat version)-documentation.zip *.pdf
@@ -606,14 +606,14 @@ jobs:
       matrix:
         include:
           # 1) Ubuntu 24.04
-          - name: ubuntu-24.04
+          - name: ubuntu-24.04-x64
             runs_on: ubuntu-24.04
             # Only one of the following containers can be non-empty
             job_container: "" # Job-level docker container
             step_container: "" # Step-level docker container
 
           # 2) Ubuntu 26.04
-          - name: ubuntu-26.04
+          - name: ubuntu-26.04-x64
             runs_on: ubuntu-latest
             # Only one of the following containers can be non-empty
             job_container: ubuntu:26.04 # Job-level docker container
@@ -636,7 +636,7 @@ jobs:
             uname_m: armv7l
 
           # 5) Windows
-          - name: windows
+          - name: windows-x64
             runs_on: windows-latest
             # Only one of the following containers can be non-empty
             job_container: ""  # Job-level docker container
@@ -657,14 +657,14 @@ jobs:
             step_container: "" # Step-level docker container
 
           # 8) macOS Intel (latest available Intel image)
-          - name: macos-intel
+          - name: macos-x64
             runs_on: macos-26-intel
             # Only one of the following containers can be non-empty
             job_container: ""  # Job-level docker container
             step_container: "" # Step-level docker container
 
           # 9) Ubuntu 22.04
-          - name: ubuntu-22.04
+          - name: ubuntu-22.04-x64
             runs_on: ubuntu-22.04
             # Only one of the following containers can be non-empty
             job_container: ""  # Job-level docker container
