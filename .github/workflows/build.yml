@@ -627,7 +627,7 @@ jobs:
             step_container: ""          # Step-level docker container
 
           # 4) Ubuntu 26.04 ARMHF
-          - name: ubuntu-26.04-armhf
+          - name: ubuntu-26.04-arm32
             runs_on: ubuntu-24.04-arm
             # Only one of the following containers can be non-empty
             job_container: ""              # Job-level docker container
