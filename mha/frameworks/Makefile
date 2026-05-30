@@ -20,7 +20,7 @@ include ../../magic.mk
 # Compile git commit hash into executables.
 CXXFLAGS += $(GITCOMMITHASHCFLAGS)
 
-ifeq "x${BRANCH_NAME}" "xmaster" # If we are in a Jenkins build of branch master
+ifeq "x${GITHUB_EVENT_NAME}" "xrelease" # If we are in a GitHub Actions build for a release
 ifeq "x" "x$(findstring modified,$(GITCOMMITHASH))" # and if git is unmodified,
 # then this is is a relase build, do not output a non-release warning ...
 CXXFLAGS += -DNORELEASE_WARNING='""'
