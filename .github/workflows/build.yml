@@ -550,12 +550,17 @@ jobs:
       - name: Add documentation to variants
         run: |
           set -eux
+
           # Extract documentation pdf files from the artifact they are in.
-          unzip openmha-*-ubuntu-22.04.zip
+          src_zip=$(ls openmha-*-ubuntu-22.04.zip)
+          unzip "$src_zip"
           sudo dpkg-deb -R openmha-packages/openmha_*.deb pkg
           sudo mv -v pkg/usr/share/doc/openmha/*.pdf ./
-          sudo rm -rf pkg  openmha-packages
+          sudo rm -rvf pkg  openmha-packages
+          mkdir -p stash
+
           # Add documentation pdf files to all linux openmha packages.
+          mv "$src_zip" stash/ # No need to update the pdfs in their source.
           for zip in openmha-*-ubuntu*.zip
           do
             unzip "$zip"
@@ -565,6 +570,8 @@ jobs:
             zip -u "$zip" openmha-packages/openmha_*.deb
             sudo rm -rf pkg openmha-packages
           done
+          mv "stash/$src_zip" .
+
           # Add documentation pdf files to all windows openmha packages.
           mkdir -p openmha/doc
           sudo cp -pv *.pdf openmha/doc
